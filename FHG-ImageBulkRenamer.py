@@ -39,8 +39,9 @@ class ImageRenamerApp(ctk.CTk):
         super().__init__()
         setup_logging()
         logging.info("Application started")
-        self.title("Forest Hills Garden Image Bulk Renamer")
-        self.geometry("800x600")
+        self.title("Forest Hills Garden Photo Editor")
+        self.geometry(self.get_adjusted_window_size())
+        self.minsize(600, 400)
 
         # Create main background frame with blue color
         self.main_bg = ctk.CTkFrame(
@@ -133,13 +134,15 @@ class ImageRenamerApp(ctk.CTk):
             font=("Helvetica", 12, "bold")
         ).pack()
         
-        ctk.CTkEntry(
+        folder_display = ctk.CTkLabel(
             self.folder_frame, 
-            textvariable=self.folder_path, 
+            textvariable=self.folder_path,
             width=300,
-            border_color="green",
-            fg_color=("#FFFFFF", "#2B2B2B")  # White/Dark grey for better contrast
-        ).pack(pady=5)
+            fg_color=("#EEEEEE", "#333333"),  # Light grey/Dark grey background
+            corner_radius=6,
+            pady=5
+        )
+        folder_display.pack(pady=5)
         
         ctk.CTkButton(
             self.folder_frame, 
@@ -156,9 +159,10 @@ class ImageRenamerApp(ctk.CTk):
         self.load_image(self.right_image_label, right_image_path, 250, 100)
         
         # List frame with green styling
-        self.list_frame = ctk.CTkFrame(
+        self.list_frame = ctk.CTkScrollableFrame(
             self.content_frame,
-            fg_color=("#A7D8A7", "#1E5631")  # Light mint green, Dark forest green
+            fg_color=("#A7D8A7", "#1E5631"),  # Light mint green, Dark forest green
+            height=200
         )
         self.list_frame.pack(pady=10, fill='both', expand=True)
         
@@ -227,20 +231,44 @@ class ImageRenamerApp(ctk.CTk):
         )
         self.rename_button.pack(pady=10)
         
+        # Footer frame for watermark
+        self.footer_frame = ctk.CTkFrame(
+            self.content_frame,
+            fg_color=("#A7D8A7", "#1E5631")  # Light mint green, Dark forest green
+        )
+        self.footer_frame.pack(side='bottom', fill='x', pady=5)
+        
+        self.watermark_label = ctk.CTkLabel(
+            self.footer_frame,
+            text="© Forest Hills Garden Photo Editor | Ron Michael Comia 2025",
+            font=("Helvetica", 10, "italic"),
+            text_color=("#333333", "#CCCCCC")  # Dark gray for light mode, light gray for dark mode
+        )
+        self.watermark_label.pack(pady=5)
+        
         self.entries = []
         self.image_list = []
-        
-        # Add viewer tracking variable
         self.current_viewer = None
-    
+
+    def get_adjusted_window_size(self):
+        """Calculate an appropriate window size based on screen dimensions"""
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        
+        # Use 80% of screen size as max dimensions
+        width = min(800, int(screen_width * 0.8))
+        height = min(600, int(screen_height * 0.8))
+        
+        return f"{width}x{height}"
+
     def toggle_theme(self):
         """Toggle between light and dark mode"""
         if ctk.get_appearance_mode() == "Light":
             ctk.set_appearance_mode("dark")
-            self.theme_switch.configure(text="Dark Mode")  # Update switch text
+            self.theme_switch.configure(text="Dark Mode")
         else:
             ctk.set_appearance_mode("light")
-            self.theme_switch.configure(text="Light Mode")  # Update switch text
+            self.theme_switch.configure(text="Light Mode")
 
     def load_image(self, label, image_path, width, height):
         try:
@@ -289,7 +317,6 @@ class ImageRenamerApp(ctk.CTk):
             )
             frame.pack(pady=2, fill='x')
             
-            # Image button
             image_button = ctk.CTkButton(
                 frame, 
                 text=image, 
@@ -300,23 +327,20 @@ class ImageRenamerApp(ctk.CTk):
             )
             image_button.pack(side='left', padx=5)
             
-            # Create a subframe for entry and buttons
             entry_frame = ctk.CTkFrame(
                 frame,
-                fg_color=("#B8E2B8", "#2E6B44")  # Match parent frame color
+                fg_color=("#B8E2B8", "#2E6B44")
             )
             entry_frame.pack(side='right', padx=5)
             
-            # Rename entry
             entry = ctk.CTkEntry(
                 entry_frame, 
                 width=200, 
                 border_color="green",
-                fg_color=("#FFFFFF", "#2B2B2B")  # White/Dark grey for better contrast
+                fg_color=("#FFFFFF", "#2B2B2B")
             )
             entry.pack(side='left', padx=(0, 5))
             
-            # Resize button
             resize_button = ctk.CTkButton(
                 entry_frame,
                 text="Resize",
@@ -327,7 +351,6 @@ class ImageRenamerApp(ctk.CTk):
             )
             resize_button.pack(side='left', padx=(0, 5))
             
-            # Delete button
             delete_button = ctk.CTkButton(
                 entry_frame,
                 text="Delete",
@@ -353,24 +376,23 @@ class ImageRenamerApp(ctk.CTk):
         self.next_button.configure(state="normal" if self.current_page < total_pages - 1 else "disabled")
     
     def prev_page(self):
-        self.save_current_entries()  # Save current page entries before navigating
+        self.save_current_entries()
         if self.current_page > 0:
             self.current_page -= 1
             self.load_images()
     
     def next_page(self):
-        self.save_current_entries()  # Save current page entries before navigating
+        self.save_current_entries()
         total_pages = (len(self.image_list) - 1) // self.images_per_page + 1
         if self.current_page < total_pages - 1:
             self.current_page += 1
             self.load_images()
     
     def save_current_entries(self):
-        """ Save the entered names before switching pages """
         for old_name, entry in self.entries:
             new_name = entry.get().strip()
             if new_name:
-                self.renamed_images[old_name] = new_name  # Store entered name
+                self.renamed_images[old_name] = new_name
 
     def show_resize_options(self, image_name):
         folder = self.folder_path.get()
@@ -542,10 +564,9 @@ class ImageRenamerApp(ctk.CTk):
         
         try:
             renamed_count = 0
-            old_to_new = {}  # Track old name to new name mappings
-            existing_conflicts = []  # Store conflicts with existing files as (old_name, new_full_name) pairs
+            old_to_new = {}
+            existing_conflicts = []
             
-            # Check for existing file conflicts
             for old_name, new_name in self.renamed_images.items():
                 if new_name:
                     new_name = "".join(c for c in new_name if c.isalnum() or c in (' ', '-', '_'))
@@ -555,19 +576,16 @@ class ImageRenamerApp(ctk.CTk):
                     if os.path.exists(new_path) and old_name != new_full_name:
                         existing_conflicts.append((old_name, new_full_name))
             
-            # Handle conflicts with user choice
             if existing_conflicts:
                 conflict_window = ctk.CTkToplevel(self)
                 conflict_window.title("Name Conflict")
                 conflict_window.attributes('-topmost', True)
-                # Increased initial size to ensure visibility
                 conflict_window.geometry("500x400")
-                conflict_window.minsize(500, 300)  # Set minimum size
+                conflict_window.minsize(500, 300)
                 
                 main_frame = ctk.CTkFrame(conflict_window)
                 main_frame.pack(fill='both', expand=True, padx=10, pady=10)
                 
-                # Title label
                 ctk.CTkLabel(
                     main_frame,
                     text="The following files will conflict with existing files:",
@@ -575,10 +593,9 @@ class ImageRenamerApp(ctk.CTk):
                     wraplength=450
                 ).pack(pady=(5, 10))
                 
-                # Scrollable frame for conflicts
                 scroll_frame = ctk.CTkScrollableFrame(
                     main_frame,
-                    height=200  # Fixed height to ensure buttons remain visible
+                    height=200
                 )
                 scroll_frame.pack(fill='x', expand=True, pady=5)
                 
@@ -590,7 +607,6 @@ class ImageRenamerApp(ctk.CTk):
                         wraplength=450
                     ).pack(pady=2, anchor='w')
                 
-                # Button frame below scrollable area
                 button_frame = ctk.CTkFrame(main_frame)
                 button_frame.pack(fill='x', pady=10)
                 
@@ -629,7 +645,6 @@ class ImageRenamerApp(ctk.CTk):
                     width=150
                 ).pack(side='left', padx=10, pady=5)
                 
-                # Center the window relative to the main app
                 conflict_window.update_idletasks()
                 x = self.winfo_x() + (self.winfo_width() - conflict_window.winfo_width()) // 2
                 y = self.winfo_y() + (self.winfo_height() - conflict_window.winfo_height()) // 2
@@ -637,7 +652,6 @@ class ImageRenamerApp(ctk.CTk):
                 
                 return
             
-            # If no conflicts, proceed directly
             self.continue_rename(old_to_new, renamed_count)
 
         except Exception as e:
@@ -647,7 +661,6 @@ class ImageRenamerApp(ctk.CTk):
     def continue_rename(self, old_to_new, renamed_count):
         folder = self.folder_path.get()
         
-        # Process renaming
         for old_name, new_name in list(self.renamed_images.items()):
             if new_name:
                 new_name = "".join(c for c in new_name if c.isalnum() or c in (' ', '-', '_'))
@@ -739,40 +752,30 @@ class ImageRenamerApp(ctk.CTk):
         folder = self.folder_path.get()
         image_path = os.path.join(folder, image_name)
         if os.path.exists(image_path):
-            # If there's an existing viewer, destroy it
             if self.current_viewer is not None and self.current_viewer.winfo_exists():
                 self.current_viewer.destroy()
             
-            # Get the index of the current image in the list
             current_index = self.image_list.index(image_name)
-            # Create the image viewer window
             self.current_viewer = ImageViewer(self, image_path, self.image_list, current_index)
             self.current_viewer.focus()
 
     def delete_image(self, image_name):
-        """Delete the selected image"""
         try:
-            # Get full path of the image
             image_path = os.path.join(self.folder_path.get(), image_name)
             
-            # Confirm deletion
             if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete {image_name}?"):
-                # Delete the file
                 os.remove(image_path)
                 logging.info(f"Deleted image: {image_name}")
                 
-                # Remove from renamed_images if present
                 if image_name in self.renamed_images:
                     del self.renamed_images[image_name]
                 
-                # Update image list and refresh display
                 self.image_list = [
                     f for f in os.listdir(self.folder_path.get()) 
                     if f.lower().endswith((".jpg", ".png", ".jpeg")) 
                     and verify_image_file(os.path.join(self.folder_path.get(), f))
                 ]
                 
-                # Adjust current page if necessary
                 total_pages = (len(self.image_list) - 1) // self.images_per_page + 1
                 if self.current_page >= total_pages and self.current_page > 0:
                     self.current_page -= 1
@@ -784,47 +787,37 @@ class ImageRenamerApp(ctk.CTk):
             messagebox.showerror("Error", f"Failed to delete image: {str(e)}")
 
     def refresh_images(self):
-        """Refresh the image list and display"""
         try:
             folder = self.folder_path.get()
             if folder:
-                # Save current page
                 current_page = self.current_page
                 
-                # Update image list
                 self.image_list = [
                     f for f in os.listdir(folder) 
                     if f.lower().endswith((".jpg", ".png", ".jpeg")) 
                     and verify_image_file(os.path.join(folder, f))
                 ]
-                self.image_list.sort()  # Sort the images alphabetically
+                self.image_list.sort()
                 
-                # Adjust current page if necessary
                 total_pages = (len(self.image_list) - 1) // self.images_per_page + 1
                 self.current_page = min(current_page, max(0, total_pages - 1))
                 
-                # Clear renamed_images dictionary
                 self.renamed_images.clear()
                 
-                # Reload images
                 self.load_images()
                 logging.info("Image list refreshed")
                 
-                # Update viewer if it exists
                 if self.current_viewer is not None and self.current_viewer.winfo_exists():
                     self.current_viewer.image_list = self.image_list
-                    # Ensure current index is valid
                     self.current_viewer.current_index = min(
                         self.current_viewer.current_index,
                         len(self.image_list) - 1
                     )
-                    # Update the viewer's display
                     current_image = self.image_list[self.current_viewer.current_index]
                     image_path = os.path.join(folder, current_image)
                     self.current_viewer.load_image(image_path)
                     self.current_viewer.update_nav_buttons()
                 
-                # Show success message
                 messagebox.showinfo("Success", "Image list refreshed successfully!")
                 
         except Exception as e:
@@ -835,17 +828,13 @@ class ImageViewer(ctk.CTkToplevel):
     def __init__(self, parent, image_path, image_list, current_index):
         super().__init__(parent)
         
-        # Make window stay on top but allow interaction with parent
         self.attributes('-topmost', True)
-        self.transient(parent)  # Makes the window always stay on top of parent
+        self.transient(parent)
         
-        # Set the same icon as the main window
         try:
             icon_path = os.path.join(get_base_path(), "photo", "fhg.ico")
             if os.path.exists(icon_path):
-                # For Windows
                 self.after(200, lambda: self.iconbitmap(icon_path))
-                # For other operating systems
                 self.after(200, lambda: self.tk.call('wm', 'iconphoto', self._w, tk.PhotoImage(file=icon_path)))
         except Exception as e:
             logging.error(f"Error setting viewer icon: {str(e)}")
@@ -855,19 +844,20 @@ class ImageViewer(ctk.CTkToplevel):
         self.current_index = current_index
         self.folder_path = os.path.dirname(image_path)
         
-        # Configure window
         self.title("Image Viewer")
-        self.geometry("720x720")
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        viewer_width = min(720, int(screen_width * 0.8))
+        viewer_height = min(720, int(screen_height * 0.8))
+        self.geometry(f"{viewer_width}x{viewer_height}")
+        self.minsize(400, 300)
         
-        # Create main frame
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
-        # Create navigation frame
         self.nav_frame = ctk.CTkFrame(self.main_frame)
         self.nav_frame.pack(fill='x', pady=5)
         
-        # Previous button
         self.prev_button = ctk.CTkButton(
             self.nav_frame,
             text="Previous",
@@ -878,7 +868,6 @@ class ImageViewer(ctk.CTkToplevel):
         )
         self.prev_button.pack(side='left', padx=5)
         
-        # Image name label
         self.image_name_label = ctk.CTkLabel(
             self.nav_frame,
             text=os.path.basename(image_path),
@@ -886,7 +875,6 @@ class ImageViewer(ctk.CTkToplevel):
         )
         self.image_name_label.pack(side='left', expand=True)
         
-        # Next button
         self.next_button = ctk.CTkButton(
             self.nav_frame,
             text="Next",
@@ -897,45 +885,48 @@ class ImageViewer(ctk.CTkToplevel):
         )
         self.next_button.pack(side='right', padx=5)
         
-        # Create image frame
         self.image_frame = ctk.CTkFrame(self.main_frame)
         self.image_frame.pack(fill='both', expand=True)
         
-        # Create image label
         self.image_label = ctk.CTkLabel(self.image_frame, text="")
         self.image_label.pack(expand=True)
         
-        # Load initial image
         self.load_image(image_path)
-        
-        # Update navigation buttons
         self.update_nav_buttons()
         
-        # Bind keyboard shortcuts
         self.bind('<Left>', lambda e: self.show_previous())
         self.bind('<Right>', lambda e: self.show_next())
         self.bind('<Escape>', lambda e: self.destroy())
-        
+        self.bind('<Configure>', self.on_resize)
+        self._resize_job = None
+
     def load_image(self, image_path):
         try:
-            # Open and resize image while maintaining aspect ratio
             img = Image.open(image_path)
-            # Calculate aspect ratio
+            frame_width = self.image_frame.winfo_width() - 20
+            frame_height = self.image_frame.winfo_height() - 20
+            
+            if frame_width < 50 or frame_height < 50:
+                frame_width = min(600, int(self.winfo_screenwidth() * 0.7))
+                frame_height = min(400, int(self.winfo_screenheight() * 0.7))
+            
             aspect_ratio = img.width / img.height
             
-            # Set maximum dimensions
-            max_width = 900
-            max_height = 600
-            
-            # Calculate new dimensions
             if aspect_ratio > 1:
-                # Width is greater than height
-                new_width = min(img.width, max_width)
+                new_width = min(img.width, frame_width)
                 new_height = int(new_width / aspect_ratio)
+                if new_height > frame_height:
+                    new_height = frame_height
+                    new_width = int(new_height * aspect_ratio)
             else:
-                # Height is greater than width
-                new_height = min(img.height, max_height)
+                new_height = min(img.height, frame_height)
                 new_width = int(new_height * aspect_ratio)
+                if new_width > frame_width:
+                    new_width = frame_width
+                    new_height = int(new_width / aspect_ratio)
+            
+            new_width = max(100, new_width)
+            new_height = max(100, new_height)
             
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             photo = ImageTk.PhotoImage(img)
@@ -947,6 +938,19 @@ class ImageViewer(ctk.CTkToplevel):
         except Exception as e:
             logging.error(f"Error loading image {image_path}: {str(e)}")
             messagebox.showerror("Error", f"Failed to load image: {str(e)}")
+
+    def on_resize(self, event):
+        if event.widget == self:
+            if hasattr(self, '_resize_job') and self._resize_job:
+                self.after_cancel(self._resize_job)
+            self._resize_job = self.after(200, self.resize_image)
+
+    def resize_image(self):
+        self._resize_job = None
+        if hasattr(self, 'current_index') and len(self.image_list) > self.current_index:
+            image_path = os.path.join(self.folder_path, self.image_list[self.current_index])
+            if os.path.exists(image_path):
+                self.load_image(image_path)
     
     def show_previous(self):
         if self.current_index > 0:
@@ -963,7 +967,6 @@ class ImageViewer(ctk.CTkToplevel):
             self.update_nav_buttons()
     
     def update_nav_buttons(self):
-        # Enable/disable navigation buttons based on current position
         self.prev_button.configure(state="normal" if self.current_index > 0 else "disabled")
         self.next_button.configure(state="normal" if self.current_index < len(self.image_list) - 1 else "disabled")
 

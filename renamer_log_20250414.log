@@ -3,3 +3,22 @@
 2025-04-14 08:40:30,335 - WARNING - Invalid or missing image: c:\Users\Ron Michael Comia\Pictures\PROJECT SYSTEMS\Project FHG\Renaming\New folder\photo\fhg.png
 2025-04-14 08:40:35,758 - INFO - Selected folder: C:/Users/Ron Michael Comia/Downloads/geotagged
 2025-04-14 08:40:49,114 - INFO - Selected folder: C:/Users/Ron Michael Comia/Pictures/Screenshots
+2025-04-14 09:13:44,666 - INFO - Application started
+2025-04-14 09:45:58,228 - INFO - Application started
+2025-04-14 09:46:06,121 - INFO - Selected folder: C:/Users/Ron Michael Comia/Pictures/Screenshots
+2025-04-14 09:46:32,239 - INFO - Resized 1st.png to 320x240
+2025-04-14 09:46:32,244 - INFO - Resized 2nd.png to 320x240
+2025-04-14 09:46:32,251 - INFO - Resized Screenshot 2025-03-24 152527.png to 320x240
+2025-04-14 09:46:32,254 - INFO - Resized Screenshot 2025-04-04 134939.png to 320x240
+2025-04-14 09:46:32,257 - INFO - Resized Screenshot 2025-04-04 134949.png to 320x240
+2025-04-14 09:46:32,260 - INFO - Resized Screenshot 2025-04-07 112159.png to 320x240
+2025-04-14 09:46:32,268 - INFO - Resized Screenshot 2025-04-10 084506.png to 320x240
+2025-04-14 09:46:32,273 - INFO - Resized Screenshot 2025-04-10 090555.png to 320x240
+2025-04-14 09:46:32,277 - INFO - Resized Screenshot 2025-04-10 154618.png to 320x240
+2025-04-14 09:46:32,285 - INFO - Resized Screenshot 2025-04-12 105757.png to 320x240
+2025-04-14 09:46:33,573 - INFO - Image list refreshed
+2025-04-14 09:46:59,659 - INFO - Successfully renamed: 1st.png -> 123.png
+2025-04-14 09:46:59,659 - ERROR - Error during rename operation: [WinError 183] Cannot create a file when that file already exists: 'C:/Users/Ron Michael Comia/Pictures/Screenshots\\2nd.png' -> 'C:/Users/Ron Michael Comia/Pictures/Screenshots\\123.png'
+2025-04-14 10:18:49,866 - INFO - Application started
+2025-04-14 16:53:46,853 - INFO - Application started
+2025-04-14 16:53:51,093 - INFO - Selected folder: C:/Users/Ron Michael Comia/Pictures/PROJECT SYSTEMS/Project FHG/Renaming/New folder/photo
