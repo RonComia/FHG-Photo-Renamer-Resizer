@@ -107,6 +107,8 @@ class ImageRenamerApp(ctk.CTk):
         self.folder_path = ctk.StringVar()
         self.images_per_page = 10
         self.renamed_images = {}  # Stores entered names
+        self.selected_image = None  # Track the currently viewed image
+        self.row_frames = []  # Store frame references for highlighting
 
         # Top Frame for images and folder selection
         self.top_frame = ctk.CTkFrame(
@@ -197,18 +199,29 @@ class ImageRenamerApp(ctk.CTk):
         )
         self.nav_frame.pack(pady=5)
         
+        self.first_button = ctk.CTkButton(
+            self.nav_frame,
+            text="First",
+            command=self.first_page,
+            fg_color="green",
+            hover_color="dark green",
+            width=100
+        )
+        self.first_button.pack(side='left', padx=5)
+        
         self.prev_button = ctk.CTkButton(
             self.nav_frame, 
             text="Previous", 
             command=self.prev_page,
             fg_color="green",
-            hover_color="dark green"
+            hover_color="dark green",
+            width=100
         )
         self.prev_button.pack(side='left', padx=5)
         
         self.page_label = ctk.CTkLabel(
             self.nav_frame, 
-            text="Page 1",
+            text="Page 1 of 1",
             font=("Helvetica", 12, "bold")
         )
         self.page_label.pack(side='left', padx=5)
@@ -218,9 +231,20 @@ class ImageRenamerApp(ctk.CTk):
             text="Next", 
             command=self.next_page,
             fg_color="green",
-            hover_color="dark green"
+            hover_color="dark green",
+            width=100
         )
         self.next_button.pack(side='left', padx=5)
+        
+        self.last_button = ctk.CTkButton(
+            self.nav_frame,
+            text="Last",
+            command=self.last_page,
+            fg_color="green",
+            hover_color="dark green",
+            width=100
+        )
+        self.last_button.pack(side='left', padx=5)
         
         self.rename_button = ctk.CTkButton(
             self.content_frame, 
@@ -240,7 +264,7 @@ class ImageRenamerApp(ctk.CTk):
         
         self.watermark_label = ctk.CTkLabel(
             self.footer_frame,
-            text="© Forest Hills Garden Photo Editor | Ron Michael Comia 2025",
+            text="© Forest Hills Garden Photo Editor V2.0| Ron Michael Comia @ 2025",
             font=("Helvetica", 10, "italic"),
             text_color=("#333333", "#CCCCCC")  # Dark gray for light mode, light gray for dark mode
         )
@@ -296,24 +320,36 @@ class ImageRenamerApp(ctk.CTk):
                 logging.info(f"Selected folder: {folder}")
                 self.current_page = 0
                 self.renamed_images.clear()
+                self.selected_image = None  # Clear highlight on new folder
+                self.row_frames.clear()  # Clear frame references
                 self.load_images()
             except Exception as e:
                 logging.error(f"Error accessing folder: {str(e)}")
                 messagebox.showerror("Error", "Unable to access selected folder")
     
+    def update_highlights(self):
+        """Update the highlight colors of all rows based on selected_image"""
+        for image_name, frame, entry_frame in self.row_frames:
+            frame_color = ("#FFFF99", "#666633") if image_name == self.selected_image else ("#B8E2B8", "#2E6B44")
+            frame.configure(fg_color=frame_color)
+            entry_frame.configure(fg_color=frame_color)
+
     def load_images(self):
+        self.save_current_entries()  # Save entries before clearing
         for widget in self.list_frame.winfo_children():
             widget.destroy()
         
         self.entries.clear()
+        self.row_frames.clear()
         start = self.current_page * self.images_per_page
         end = start + self.images_per_page
         images = self.image_list[start:end]
         
         for image in images:
+            frame_color = ("#FFFF99", "#666633") if image == self.selected_image else ("#B8E2B8", "#2E6B44")
             frame = ctk.CTkFrame(
                 self.list_frame,
-                fg_color=("#B8E2B8", "#2E6B44")  # Slightly lighter green for inner frames
+                fg_color=frame_color  # Yellow for selected, default green otherwise
             )
             frame.pack(pady=2, fill='x')
             
@@ -329,7 +365,7 @@ class ImageRenamerApp(ctk.CTk):
             
             entry_frame = ctk.CTkFrame(
                 frame,
-                fg_color=("#B8E2B8", "#2E6B44")
+                fg_color=frame_color  # Match the parent frame's color
             )
             entry_frame.pack(side='right', padx=5)
             
@@ -365,15 +401,24 @@ class ImageRenamerApp(ctk.CTk):
                 entry.insert(0, self.renamed_images[image])
 
             self.entries.append((image, entry))
+            self.row_frames.append((image, frame, entry_frame))
         
-        self.page_label.configure(text=f"Page {self.current_page + 1}")
+        total_pages = max(1, (len(self.image_list) - 1) // self.images_per_page + 1)
+        self.page_label.configure(text=f"Page {self.current_page + 1} of {total_pages}")
         self.update_nav_buttons()
         self.close_image()
     
     def update_nav_buttons(self):
-        total_pages = (len(self.image_list) - 1) // self.images_per_page + 1
+        total_pages = max(1, (len(self.image_list) - 1) // self.images_per_page + 1)
+        self.first_button.configure(state="normal" if self.current_page > 0 else "disabled")
         self.prev_button.configure(state="normal" if self.current_page > 0 else "disabled")
         self.next_button.configure(state="normal" if self.current_page < total_pages - 1 else "disabled")
+        self.last_button.configure(state="normal" if self.current_page < total_pages - 1 else "disabled")
+    
+    def first_page(self):
+        self.save_current_entries()
+        self.current_page = 0
+        self.load_images()
     
     def prev_page(self):
         self.save_current_entries()
@@ -383,10 +428,16 @@ class ImageRenamerApp(ctk.CTk):
     
     def next_page(self):
         self.save_current_entries()
-        total_pages = (len(self.image_list) - 1) // self.images_per_page + 1
+        total_pages = max(1, (len(self.image_list) - 1) // self.images_per_page + 1)
         if self.current_page < total_pages - 1:
             self.current_page += 1
             self.load_images()
+    
+    def last_page(self):
+        self.save_current_entries()
+        total_pages = max(1, (len(self.image_list) - 1) // self.images_per_page + 1)
+        self.current_page = total_pages - 1
+        self.load_images()
     
     def save_current_entries(self):
         for old_name, entry in self.entries:
@@ -715,6 +766,19 @@ class ImageRenamerApp(ctk.CTk):
                 text=self.image_list[self.current_viewer.current_index]
             )
             self.current_viewer.update_nav_buttons()
+            # Update the rename entry in the viewer
+            self.current_viewer.rename_entry.delete(0, 'end')
+            new_name = self.renamed_images.get(self.image_list[self.current_viewer.current_index], "")
+            self.current_viewer.rename_entry.insert(0, new_name)
+            # Update selected_image and highlights
+            self.selected_image = self.image_list[self.current_viewer.current_index]
+            self.update_highlights()
+        
+        # Clear the renamed_images dictionary to reset input boxes
+        self.renamed_images.clear()
+        
+        # Refresh the image list to update UI
+        self.refresh_images()
         
         msg_window = ctk.CTkToplevel(self)
         msg_window.title("Success")
@@ -741,7 +805,6 @@ class ImageRenamerApp(ctk.CTk):
         ).pack(pady=5)
         
         msg_window.bind('<Return>', lambda e: msg_window.destroy())
-        self.load_images()
     
     def close_image(self):
         self.image_label.configure(image="")
@@ -755,6 +818,9 @@ class ImageRenamerApp(ctk.CTk):
             if self.current_viewer is not None and self.current_viewer.winfo_exists():
                 self.current_viewer.destroy()
             
+            self.save_current_entries()  # Save entries before opening viewer
+            self.selected_image = image_name  # Set the selected image
+            self.update_highlights()  # Update highlight without refreshing
             current_index = self.image_list.index(image_name)
             self.current_viewer = ImageViewer(self, image_path, self.image_list, current_index)
             self.current_viewer.focus()
@@ -770,13 +836,16 @@ class ImageRenamerApp(ctk.CTk):
                 if image_name in self.renamed_images:
                     del self.renamed_images[image_name]
                 
+                if self.selected_image == image_name:
+                    self.selected_image = None  # Clear highlight if deleted
+                
                 self.image_list = [
                     f for f in os.listdir(self.folder_path.get()) 
                     if f.lower().endswith((".jpg", ".png", ".jpeg")) 
                     and verify_image_file(os.path.join(self.folder_path.get(), f))
                 ]
                 
-                total_pages = (len(self.image_list) - 1) // self.images_per_page + 1
+                total_pages = max(1, (len(self.image_list) - 1) // self.images_per_page + 1)
                 if self.current_page >= total_pages and self.current_page > 0:
                     self.current_page -= 1
                 
@@ -790,6 +859,7 @@ class ImageRenamerApp(ctk.CTk):
         try:
             folder = self.folder_path.get()
             if folder:
+                self.save_current_entries()  # Save entries before refreshing
                 current_page = self.current_page
                 
                 self.image_list = [
@@ -799,10 +869,8 @@ class ImageRenamerApp(ctk.CTk):
                 ]
                 self.image_list.sort()
                 
-                total_pages = (len(self.image_list) - 1) // self.images_per_page + 1
+                total_pages = max(1, (len(self.image_list) - 1) // self.images_per_page + 1)
                 self.current_page = min(current_page, max(0, total_pages - 1))
-                
-                self.renamed_images.clear()
                 
                 self.load_images()
                 logging.info("Image list refreshed")
@@ -817,8 +885,13 @@ class ImageRenamerApp(ctk.CTk):
                     image_path = os.path.join(folder, current_image)
                     self.current_viewer.load_image(image_path)
                     self.current_viewer.update_nav_buttons()
-                
-                messagebox.showinfo("Success", "Image list refreshed successfully!")
+                    # Update the rename entry in the viewer
+                    self.current_viewer.rename_entry.delete(0, 'end')
+                    new_name = self.renamed_images.get(current_image, "")
+                    self.current_viewer.rename_entry.insert(0, new_name)
+                    # Update selected_image and highlights
+                    self.selected_image = current_image
+                    self.update_highlights()
                 
         except Exception as e:
             logging.error(f"Error refreshing images: {str(e)}")
@@ -855,6 +928,7 @@ class ImageViewer(ctk.CTkToplevel):
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
+        # Navigation and rename frame
         self.nav_frame = ctk.CTkFrame(self.main_frame)
         self.nav_frame.pack(fill='x', pady=5)
         
@@ -885,6 +959,29 @@ class ImageViewer(ctk.CTkToplevel):
         )
         self.next_button.pack(side='right', padx=5)
         
+        # Rename entry frame
+        self.rename_frame = ctk.CTkFrame(self.main_frame)
+        self.rename_frame.pack(fill='x', pady=5)
+        
+        ctk.CTkLabel(
+            self.rename_frame,
+            text="Rename:",
+            font=("Helvetica", 12)
+        ).pack(side='left', padx=5)
+        
+        self.rename_entry = ctk.CTkEntry(
+            self.rename_frame,
+            width=300,
+            border_color="green",
+            fg_color=("#FFFFFF", "#2B2B2B")
+        )
+        self.rename_entry.pack(side='left', padx=5)
+        # Initialize with any existing rename value
+        current_image = self.image_list[self.current_index]
+        if current_image in self.parent.renamed_images:
+            self.rename_entry.insert(0, self.parent.renamed_images[current_image])
+        
+        # Image display frame
         self.image_frame = ctk.CTkFrame(self.main_frame)
         self.image_frame.pack(fill='both', expand=True)
         
@@ -894,11 +991,29 @@ class ImageViewer(ctk.CTkToplevel):
         self.load_image(image_path)
         self.update_nav_buttons()
         
-        self.bind('<Left>', lambda e: self.show_previous())
-        self.bind('<Right>', lambda e: self.show_next())
-        self.bind('<Escape>', lambda e: self.destroy())
+        # Bind arrow keys at the window level to ensure navigation works even when entry has focus
+        self.bind_all('<Left>', lambda e: self.show_previous())
+        self.bind_all('<Right>', lambda e: self.show_next())
+        self.bind('<Escape>', lambda e: self.close_viewer())
         self.bind('<Configure>', self.on_resize)
         self._resize_job = None
+        
+        # Bind Enter key in rename entry to save the rename value
+        self.rename_entry.bind('<Return>', self.save_rename)
+
+    def close_viewer(self):
+        self.parent.selected_image = None  # Clear highlight
+        self.parent.update_highlights()  # Update highlights without refreshing
+        self.destroy()
+
+    def save_rename(self, event=None):
+        """Save the rename entry to the parent's renamed_images dictionary"""
+        current_image = self.image_list[self.current_index]
+        new_name = self.rename_entry.get().strip()
+        if new_name:
+            self.parent.renamed_images[current_image] = new_name
+        elif current_image in self.parent.renamed_images:
+            del self.parent.renamed_images[current_image]
 
     def load_image(self, image_path):
         try:
@@ -935,6 +1050,12 @@ class ImageViewer(ctk.CTkToplevel):
             self.image_label.image = photo
             self.image_name_label.configure(text=os.path.basename(image_path))
             
+            # Update rename entry when loading a new image
+            self.rename_entry.delete(0, 'end')
+            current_image = self.image_list[self.current_index]
+            if current_image in self.parent.renamed_images:
+                self.rename_entry.insert(0, self.parent.renamed_images[current_image])
+            
         except Exception as e:
             logging.error(f"Error loading image {image_path}: {str(e)}")
             messagebox.showerror("Error", f"Failed to load image: {str(e)}")
@@ -952,19 +1073,31 @@ class ImageViewer(ctk.CTkToplevel):
             if os.path.exists(image_path):
                 self.load_image(image_path)
     
-    def show_previous(self):
+    def show_previous(self, event=None):
         if self.current_index > 0:
+            # Save rename entry in viewer and main window entries
+            self.save_rename()
+            self.parent.save_current_entries()
             self.current_index -= 1
             image_path = os.path.join(self.folder_path, self.image_list[self.current_index])
             self.load_image(image_path)
             self.update_nav_buttons()
-    
-    def show_next(self):
+            # Update highlight in main window without refreshing
+            self.parent.selected_image = self.image_list[self.current_index]
+            self.parent.update_highlights()
+
+    def show_next(self, event=None):
         if self.current_index < len(self.image_list) - 1:
+            # Save rename entry in viewer and main window entries
+            self.save_rename()
+            self.parent.save_current_entries()
             self.current_index += 1
             image_path = os.path.join(self.folder_path, self.image_list[self.current_index])
             self.load_image(image_path)
             self.update_nav_buttons()
+            # Update highlight in main window without refreshing
+            self.parent.selected_image = self.image_list[self.current_index]
+            self.parent.update_highlights()
     
     def update_nav_buttons(self):
         self.prev_button.configure(state="normal" if self.current_index > 0 else "disabled")
