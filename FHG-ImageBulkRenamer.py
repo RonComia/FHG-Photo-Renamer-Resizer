@@ -16,7 +16,7 @@ def setup_logging():
     log_file = f"renamer_log_{datetime.now().strftime('%Y%m%d')}.log"
     logging.basicConfig(
         filename=log_file,
-        level=logging.INFO,
+        level=logging.DEBUG,  # Detailed logging for debugging
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
@@ -74,6 +74,17 @@ class ImageRenamerApp(ctk.CTk):
             width=100
         )
         self.refresh_button.pack(side='left', padx=10)
+        
+        # Add clear button to theme frame
+        self.clear_button = ctk.CTkButton(
+            self.theme_frame,
+            text="Clear",
+            command=self.clear_entries,
+            fg_color="orange",
+            hover_color="dark orange",
+            width=100
+        )
+        self.clear_button.pack(side='left', padx=10)
         
         # Add resize all button
         self.resize_all_button = ctk.CTkButton(
@@ -329,10 +340,12 @@ class ImageRenamerApp(ctk.CTk):
     
     def update_highlights(self):
         """Update the highlight colors of all rows based on selected_image"""
+        logging.debug(f"Updating highlights, selected_image: {self.selected_image}, row_frames count: {len(self.row_frames)}")
         for image_name, frame, entry_frame in self.row_frames:
             frame_color = ("#FFFF99", "#666633") if image_name == self.selected_image else ("#B8E2B8", "#2E6B44")
             frame.configure(fg_color=frame_color)
             entry_frame.configure(fg_color=frame_color)
+            logging.debug(f"Set color for {image_name}: {frame_color} (selected: {self.selected_image})")
 
     def load_images(self):
         self.save_current_entries()  # Save entries before clearing
@@ -349,7 +362,7 @@ class ImageRenamerApp(ctk.CTk):
             frame_color = ("#FFFF99", "#666633") if image == self.selected_image else ("#B8E2B8", "#2E6B44")
             frame = ctk.CTkFrame(
                 self.list_frame,
-                fg_color=frame_color  # Yellow for selected, default green otherwise
+                fg_color=frame_color
             )
             frame.pack(pady=2, fill='x')
             
@@ -365,7 +378,7 @@ class ImageRenamerApp(ctk.CTk):
             
             entry_frame = ctk.CTkFrame(
                 frame,
-                fg_color=frame_color  # Match the parent frame's color
+                fg_color=frame_color
             )
             entry_frame.pack(side='right', padx=5)
             
@@ -397,9 +410,10 @@ class ImageRenamerApp(ctk.CTk):
             )
             delete_button.pack(side='left')
             
-            if image in self.renamed_images:
+            # Only insert rename if it exists and is valid
+            if image in self.renamed_images and self.renamed_images[image].strip():
                 entry.insert(0, self.renamed_images[image])
-
+            
             self.entries.append((image, entry))
             self.row_frames.append((image, frame, entry_frame))
         
@@ -407,6 +421,7 @@ class ImageRenamerApp(ctk.CTk):
         self.page_label.configure(text=f"Page {self.current_page + 1} of {total_pages}")
         self.update_nav_buttons()
         self.close_image()
+        logging.debug(f"Loaded images, row_frames count: {len(self.row_frames)}, images displayed: {len(images)}")
     
     def update_nav_buttons(self):
         total_pages = max(1, (len(self.image_list) - 1) // self.images_per_page + 1)
@@ -444,6 +459,23 @@ class ImageRenamerApp(ctk.CTk):
             new_name = entry.get().strip()
             if new_name:
                 self.renamed_images[old_name] = new_name
+            elif old_name in self.renamed_images:
+                del self.renamed_images[old_name]
+
+    def clear_entries(self):
+        """Clear all rename entries in the main window and image viewer"""
+        # Clear the renamed_images dictionary
+        self.renamed_images.clear()
+        
+        # Clear all entry fields in the main window
+        for _, entry in self.entries:
+            entry.delete(0, 'end')
+        
+        # Clear the rename entry in the image viewer if open
+        if self.current_viewer is not None and self.current_viewer.winfo_exists():
+            self.current_viewer.rename_entry.delete(0, 'end')
+        
+        logging.info("Cleared all rename entries")
 
     def show_resize_options(self, image_name):
         folder = self.folder_path.get()
@@ -605,6 +637,20 @@ class ImageRenamerApp(ctk.CTk):
             logging.error(f"Error resizing all images: {str(e)}")
             messagebox.showerror("Error", f"Failed to resize images: {str(e)}")
 
+    def get_unique_filename(self, folder, new_name, ext):
+        """Generate a unique filename by appending (n) if the file exists"""
+        base_name = new_name
+        new_full_name = f"{base_name}{ext}"
+        new_path = os.path.join(folder, new_full_name)
+        counter = 1
+        
+        while os.path.exists(new_path):
+            new_full_name = f"{base_name}({counter}){ext}"
+            new_path = os.path.join(folder, new_full_name)
+            counter += 1
+        
+        return new_full_name
+
     def rename_images(self):
         folder = self.folder_path.get()
         if not folder:
@@ -669,6 +715,18 @@ class ImageRenamerApp(ctk.CTk):
                     conflict_window.destroy()
                     self.continue_rename(old_to_new, renamed_count)
                 
+                def rename_with_suffix_and_proceed():
+                    for old_name, new_full_name in existing_conflicts:
+                        new_path = os.path.join(folder, new_full_name)
+                        ext = os.path.splitext(new_full_name)[1].lower()
+                        new_name = os.path.splitext(new_full_name)[0]
+                        unique_name = self.get_unique_filename(folder, new_name, ext)
+                        unique_path = os.path.join(folder, unique_name)
+                        os.rename(new_path, unique_path)
+                        logging.info(f"Renamed existing file to: {unique_name}")
+                    conflict_window.destroy()
+                    self.continue_rename(old_to_new, renamed_count)
+                
                 def cancel_and_clear():
                     for old_name, entry in self.entries:
                         if (old_name, self.renamed_images.get(old_name, "") + os.path.splitext(old_name)[1].lower()) in existing_conflicts:
@@ -684,6 +742,15 @@ class ImageRenamerApp(ctk.CTk):
                     command=remove_and_proceed,
                     fg_color="green",
                     hover_color="dark green",
+                    width=150
+                ).pack(side='left', padx=10, pady=5)
+                
+                ctk.CTkButton(
+                    button_frame,
+                    text="Rename with Suffix",
+                    command=rename_with_suffix_and_proceed,
+                    fg_color="blue",
+                    hover_color="dark blue",
                     width=150
                 ).pack(side='left', padx=10, pady=5)
                 
@@ -740,14 +807,24 @@ class ImageRenamerApp(ctk.CTk):
                         renamed_count += 1
                         old_to_new[old_name] = new_full_name
                         logging.info(f"Successfully renamed: {old_name} -> {new_full_name}")
+                        # Remove from renamed_images immediately after successful rename
+                        del self.renamed_images[old_name]
                     else:
                         logging.error(f"Checksum mismatch after renaming: {old_name}")
-
+        
+        # Clear any remaining stale entries
+        self.renamed_images.clear()
+        
         self.update_viewer_and_show_success(old_to_new, renamed_count)
 
     def update_viewer_and_show_success(self, old_to_new, renamed_count):
         folder = self.folder_path.get()
         
+        # Clear all entry fields in the main window
+        for _, entry in self.entries:
+            entry.delete(0, 'end')
+        
+        # Update image viewer if open
         if self.current_viewer is not None and self.current_viewer.winfo_exists():
             current_image = self.image_list[self.current_viewer.current_index]
             self.image_list = [
@@ -766,20 +843,16 @@ class ImageRenamerApp(ctk.CTk):
                 text=self.image_list[self.current_viewer.current_index]
             )
             self.current_viewer.update_nav_buttons()
-            # Update the rename entry in the viewer
+            # Clear the rename entry in the viewer
             self.current_viewer.rename_entry.delete(0, 'end')
-            new_name = self.renamed_images.get(self.image_list[self.current_viewer.current_index], "")
-            self.current_viewer.rename_entry.insert(0, new_name)
             # Update selected_image and highlights
             self.selected_image = self.image_list[self.current_viewer.current_index]
             self.update_highlights()
         
-        # Clear the renamed_images dictionary to reset input boxes
-        self.renamed_images.clear()
-        
         # Refresh the image list to update UI
         self.refresh_images()
         
+        # Show success message
         msg_window = ctk.CTkToplevel(self)
         msg_window.title("Success")
         msg_window.geometry("300x100")
@@ -862,6 +935,9 @@ class ImageRenamerApp(ctk.CTk):
                 self.save_current_entries()  # Save entries before refreshing
                 current_page = self.current_page
                 
+                # Clear renamed_images to reset rename history
+                self.renamed_images.clear()
+                
                 self.image_list = [
                     f for f in os.listdir(folder) 
                     if f.lower().endswith((".jpg", ".png", ".jpeg")) 
@@ -879,7 +955,7 @@ class ImageRenamerApp(ctk.CTk):
                     self.current_viewer.image_list = self.image_list
                     self.current_viewer.current_index = min(
                         self.current_viewer.current_index,
-                        len(self.image_list) - 1
+                        max(0, len(self.image_list) - 1)
                     )
                     current_image = self.image_list[self.current_viewer.current_index]
                     image_path = os.path.join(folder, current_image)
@@ -887,8 +963,7 @@ class ImageRenamerApp(ctk.CTk):
                     self.current_viewer.update_nav_buttons()
                     # Update the rename entry in the viewer
                     self.current_viewer.rename_entry.delete(0, 'end')
-                    new_name = self.renamed_images.get(current_image, "")
-                    self.current_viewer.rename_entry.insert(0, new_name)
+                    # No need to insert anything since renamed_images is cleared
                     # Update selected_image and highlights
                     self.selected_image = current_image
                     self.update_highlights()
@@ -978,7 +1053,7 @@ class ImageViewer(ctk.CTkToplevel):
         self.rename_entry.pack(side='left', padx=5)
         # Initialize with any existing rename value
         current_image = self.image_list[self.current_index]
-        if current_image in self.parent.renamed_images:
+        if current_image in self.parent.renamed_images and self.parent.renamed_images[current_image].strip():
             self.rename_entry.insert(0, self.parent.renamed_images[current_image])
         
         # Image display frame
@@ -1002,18 +1077,48 @@ class ImageViewer(ctk.CTkToplevel):
         self.rename_entry.bind('<Return>', self.save_rename)
 
     def close_viewer(self):
-        self.parent.selected_image = None  # Clear highlight
-        self.parent.update_highlights()  # Update highlights without refreshing
+        """Close the viewer and ensure the highlight is removed in the main window"""
+        self.parent.selected_image = None
+        logging.info(f"Clearing highlight on viewer close, row_frames count: {len(self.parent.row_frames)}")
+        # Clear row_frames to prevent stale references
+        self.parent.row_frames.clear()
+        logging.debug("Cleared row_frames before highlight update")
+        # Immediate highlight update
+        self.parent.update_highlights()
+        # Schedule another update with delay to ensure UI processes
+        self.parent.after(100, self.parent.update_highlights)
+        # Fallback: explicitly reset all row colors to default
+        for image_name, frame, entry_frame in self.parent.row_frames:
+            frame.configure(fg_color=("#B8E2B8", "#2E6B44"))
+            entry_frame.configure(fg_color=("#B8E2B8", "#2E6B44"))
+            logging.debug(f"Fallback reset color for {image_name}: ('#B8E2B8', '#2E6B44')")
+        # Force immediate UI rendering
+        self.parent.update_idletasks()
+        # Force full UI refresh to ensure highlights are cleared
+        self.parent.load_images()
+        # Log final row colors
+        for image_name, frame, entry_frame in self.parent.row_frames:
+            logging.debug(f"Post-load_images color for {image_name}: {frame.cget('fg_color')}")
         self.destroy()
+        logging.info("Image viewer closed")
 
     def save_rename(self, event=None):
-        """Save the rename entry to the parent's renamed_images dictionary"""
+        """Save the rename entry to the parent's renamed_images and update main window entry"""
         current_image = self.image_list[self.current_index]
         new_name = self.rename_entry.get().strip()
         if new_name:
             self.parent.renamed_images[current_image] = new_name
         elif current_image in self.parent.renamed_images:
             del self.parent.renamed_images[current_image]
+        
+        # Update the corresponding entry in the main window if visible
+        for image_name, entry in self.parent.entries:
+            if image_name == current_image:
+                entry.delete(0, 'end')
+                if new_name:
+                    entry.insert(0, new_name)
+                break
+        logging.info(f"Saved rename for {current_image}: {new_name}")
 
     def load_image(self, image_path):
         try:
@@ -1053,7 +1158,7 @@ class ImageViewer(ctk.CTkToplevel):
             # Update rename entry when loading a new image
             self.rename_entry.delete(0, 'end')
             current_image = self.image_list[self.current_index]
-            if current_image in self.parent.renamed_images:
+            if current_image in self.parent.renamed_images and self.parent.renamed_images[current_image].strip():
                 self.rename_entry.insert(0, self.parent.renamed_images[current_image])
             
         except Exception as e:
@@ -1075,9 +1180,8 @@ class ImageViewer(ctk.CTkToplevel):
     
     def show_previous(self, event=None):
         if self.current_index > 0:
-            # Save rename entry in viewer and main window entries
+            # Save rename entry for current image
             self.save_rename()
-            self.parent.save_current_entries()
             self.current_index -= 1
             image_path = os.path.join(self.folder_path, self.image_list[self.current_index])
             self.load_image(image_path)
@@ -1088,9 +1192,8 @@ class ImageViewer(ctk.CTkToplevel):
 
     def show_next(self, event=None):
         if self.current_index < len(self.image_list) - 1:
-            # Save rename entry in viewer and main window entries
+            # Save rename entry for current image
             self.save_rename()
-            self.parent.save_current_entries()
             self.current_index += 1
             image_path = os.path.join(self.folder_path, self.image_list[self.current_index])
             self.load_image(image_path)
